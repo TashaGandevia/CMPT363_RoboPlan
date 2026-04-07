@@ -1,0 +1,225 @@
+// TaskCard
+// Swipeable task row for the Tasks list. Swipe left to reveal delete, swipe right to reveal edit.
+//
+// Props:
+//   title         – string, task name
+//   due           – string, due date display (e.g. 'Feb 27th, 2026')
+//   time          – string, optional time (e.g. '3:00 PM'), shown after due date
+//   priority      – 'low' | 'med' | 'high' (default 'med')
+//   subtasks      – array of { label: string }, first item shown as preview, rest counted
+//   onClick       – () => void, tap to open Task Detail
+//   onDelete      – () => void, called when delete action is confirmed via swipe
+//   onEdit        – () => void, called when edit action is confirmed via swipe
+//   swipeX        – number (controlled), current horizontal swipe offset in px
+//   onSwipeChange – (x: number) => void, reports new swipe offset to parent
+//
+// Swipe state is intentionally lifted to the parent so the list can ensure only one card
+// is swiped open at a time. See Tasks.jsx for the recommended pattern:
+//
+//   const [swipeId, setSwipeId] = useState(null)
+//   const [swipeX,  setSwipeX]  = useState(0)
+//
+//   tasks.map(task => (
+//     <TaskCard
+//       key={task.id}
+//       {...task}
+//       swipeX={swipeId === task.id ? swipeX : 0}
+//       onSwipeChange={x => { setSwipeId(task.id); setSwipeX(x) }}
+//       onDelete={() => handleDelete(task.id)}
+//       onEdit={() => navigate(`/tasks/${task.id}/edit`)}
+//       onClick={() => navigate(`/tasks/${task.id}`)}
+//     />
+//   ))
+
+import { useState, useRef } from 'react'
+import { priority as priorityMap } from '../data/chipColors'
+import { Pencil, Trash2 } from 'lucide-react'
+import CircleCheck from './CircleCheck'
+
+function TaskCard({
+                      title,
+                      due,
+                      time,
+                      priority = 'med',
+                      effort: effortLevel, // Passed as 1, 2, 3, etc.
+                      subtasks = [],
+                      completed = false,
+                      onComplete,
+                      onClick,
+                      onDelete,
+                      onEdit,
+                      swipeX = 0,
+                      onSwipeChange
+                  }) {
+    const done                  = completed
+    const [swiping, setSwiping] = useState(false)
+    const startX                = useRef(null)
+    const startSwipeX           = useRef(0)
+
+    // Pulling from updated data structures
+    const p                     = priorityMap[priority] || priorityMap.med
+    const e                     = effortLevel ? effortMap[effortLevel] : null
+
+    const firstSubtask          = subtasks[0]
+    const remaining             = subtasks.length - 1
+    const THRESHOLD             = 60
+
+    function onTouchStart(e) {
+        startX.current      = e.touches[0].clientX
+        startSwipeX.current = swipeX   // remember where this card started
+        setSwiping(true)
+    }
+
+    function onTouchMove(e) {
+        if (startX.current === null) return
+        const diff = e.touches[0].clientX - startX.current
+        const next = startSwipeX.current + diff
+        onSwipeChange?.(Math.max(-THRESHOLD, Math.min(THRESHOLD, next)))
+    }
+
+    function onTouchEnd() {
+        const snapTo = swipeX < -(THRESHOLD / 2) ? -THRESHOLD
+            : swipeX >  (THRESHOLD / 2) ?  THRESHOLD
+                : 0
+        onSwipeChange?.(snapTo)
+        setSwiping(false)
+        startX.current = null
+    }
+
+    const showDelete = swipeX < -THRESHOLD / 2
+    const showEdit   = swipeX > THRESHOLD / 2
+
+    return (
+        <div style={{ position: 'relative', borderRadius: '16px', overflow: 'hidden' }}>
+
+            {/* action buttons */}
+            <div style={{
+                position: 'absolute',
+                inset: 0,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                borderRadius: '16px',
+            }}>
+                <div
+                    onClick={() => { onEdit?.(); onSwipeChange?.(0) }}
+                    style={{
+                        background: 'var(--color-primary)',
+                        width: '64px',
+                        height: '100%',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        borderRadius: '16px 0 0 16px',
+                        opacity: showEdit ? 1 : 0,
+                        transition: 'opacity 0.15s',
+                        cursor: 'pointer',
+                    }}>
+                    <Pencil size={18} color="white" />
+                </div>
+                <div
+                    onClick={() => { onDelete?.(); onSwipeChange?.(0) }}
+                    style={{
+                        background: 'var(--color-important)',
+                        width: '64px',
+                        height: '100%',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        borderRadius: '0 16px 16px 0',
+                        opacity: showDelete ? 1 : 0,
+                        transition: 'opacity 0.15s',
+                        cursor: 'pointer',
+                    }}>
+                    <Trash2 size={18} color="white" />
+                </div>
+            </div>
+
+            {/* card */}
+            <div
+                onTouchStart={onTouchStart}
+                onTouchMove={onTouchMove}
+                onTouchEnd={onTouchEnd}
+                onClick={() => {
+                    if (Math.abs(swipeX) > 5) { onSwipeChange?.(0); return }
+                    onClick?.()
+                }}
+                style={{
+                    background: 'var(--color-card)',
+                    borderRadius: '16px',
+                    padding: '14px 16px',
+                    display: 'flex',
+                    alignItems: 'flex-start',
+                    gap: '12px',
+                    cursor: 'pointer',
+                    boxShadow: '0 2px 12px rgba(0,0,0,0.15)',
+                    transform: `translateX(${swipeX}px)`,
+                    transition: swiping ? 'none' : 'transform 0.25s ease',
+                    position: 'relative',
+                    zIndex: 1,
+                }}
+            >
+                {/* checkbox */}
+                <div style={{ marginTop: '2px' }}>
+                    <CircleCheck checked={done} onChange={val => onComplete?.(val)} />
+                </div>
+
+                {/* content */}
+                <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                    <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '8px' }}>
+                        <span style={{
+                            color: done ? 'var(--color-text-muted)' : 'var(--color-text-main)',
+                            fontWeight: 600,
+                            fontSize: '14px',
+                            flex: 1,
+                            textDecoration: done ? 'line-through' : 'none',
+                            transition: 'all 0.2s',
+                        }}>
+                            {title}
+                        </span>
+
+                        {!done && (
+                            <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+                                {/* Effort Badge */}
+                                {e && (
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '3px', color: e.color }}>
+                                        <Gauge size={12} />
+                                        <span style={{ fontSize: '10px', fontWeight: 800 }}>{e.label}</span>
+                                    </div>
+                                )}
+
+                                {/* Priority Badge */}
+                                <span style={{
+                                    background: `var(--color-${p.chipColor}-soft)`,
+                                    color: p.color,
+                                    fontSize: '10px',
+                                    fontWeight: 700,
+                                    letterSpacing: '0.06em',
+                                    padding: '2px 8px',
+                                    borderRadius: '20px',
+                                    whiteSpace: 'nowrap',
+                                }}>
+                                    {p.label}
+                                </span>
+                            </div>
+                        )}
+                    </div>
+
+                    {!done && (due || time) && (
+                        <span style={{ color: 'var(--color-text-muted)', fontSize: '12px' }}>
+                            Due: {due}{time ? ` · ${time}` : ''}
+                        </span>
+                    )}
+
+                    {!done && firstSubtask && (
+                        <span style={{ color: 'var(--color-text-muted)', fontSize: '11px' }}>
+                            ↳ {firstSubtask.label}{remaining > 0 ? ` · +${remaining} more tasks` : ''}
+                        </span>
+                    )}
+                </div>
+            </div>
+        </div>
+    )
+}
+
+export default TaskCard
