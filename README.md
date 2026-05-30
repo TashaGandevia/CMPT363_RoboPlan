@@ -5,6 +5,8 @@
 
 > A low-friction, transparent, and flexible task planning app designed for adults with ADHD.
 
+<video src="./Demo.mp4" controls="controls" style="max-width: 730px;"></video>
+
 ## Overview
 
 RoboPlan is an AI-powered mobile productivity app built to address the unique cognitive challenges faced by adults with ADHD — including difficulty with task initiation, prioritization, and time estimation. Unlike rigid, conventional productivity tools, RoboPlan is designed around how ADHD brains actually work.
