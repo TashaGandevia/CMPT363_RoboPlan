@@ -5,7 +5,7 @@
 
 > A low-friction, transparent, and flexible task planning app designed for adults with ADHD.
 
-<video src="./Demo.mp4" controls="controls" style="max-width: 730px;"></video>
+[![Demo Video](DemoThumbnail.png)](Demo.mp4)
 
 ## Overview
 
